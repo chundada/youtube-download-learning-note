@@ -1,0 +1,23 @@
+# =============================================================================
+# YouTube / Bilibili 学习笔记工具 — 依赖清单
+# =============================================================================
+# 安装：pip install -r requirements.txt
+# 跨平台支持：Windows / macOS / Linux
+
+# === 字幕获取核心 ===
+
+# YouTube 字幕获取（首选方案）
+youtube-transcript-api>=1.0.1
+
+# 视频信息获取
+requests>=2.28.0
+
+# === 降级方案 / B站支持 ===
+
+# yt-dlp: YouTube 降级方案 + B站字幕获取
+# 同时支持 YouTube（当 youtube-transcript-api 失败时自动降级）
+# 也用于 Bilibili 字幕提取
+yt-dlp>=2024.0.0
+
+# === 可选依赖（使用对应功能时才需要）===
+# markdown         # HTML 降级输出时用于 Markdown → HTML 转换

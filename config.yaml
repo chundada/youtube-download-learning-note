@@ -1,0 +1,28 @@
+﻿# yt-dl-zh 配置文件
+# 可通过环境变量覆盖（如 HTTP_PROXY, YT_DL_DIR 等）
+
+# ── 代理 ──────────────────────────────────────────────────
+proxy: 'http://127.0.0.1:2080'
+
+# ── 下载目录 ──────────────────────────────────────────────
+download_dir: '~/youtube-downloads'
+
+# ── 频道监控 ──────────────────────────────────────────────
+min_date: '20260101'           # 最早发布日期 (YYYYMMDD)
+
+# ── 格式选择 ──────────────────────────────────────────────
+format:
+  # 优先中文配音音轨 140-16，回退最佳视频+原始音频
+  best: 'bv[ext=mp4]+140-16/bv[ext=mp4]+ba*'
+  # 仅字幕模式
+  subs: 'bv[ext=mp4]+ba[ext=m4a]'
+  # 仅音频
+  audio: '140-16/ba*'
+
+# ── AI 配音 ────────────────────────────────────────────────
+ai_dub:
+  engine: 'pyvideotrans'        # pyvideotrans | manual
+  source_language: 'en'         # 源语言
+  target_language: 'zh-cn'      # 目标语言
+  voice: 'zh-CN-XiaoxiaoNeural' # Edge TTS 语音名称
+  keep_background_music: true   # 保留背景音
