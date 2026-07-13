@@ -1,4 +1,4 @@
-﻿---
+---
 name: "youtube-all-in-one"
 description: "一站式 YouTube/B站 视频处理：自动检测中文音轨 → 英文视频自动AI中文配音（edge-tts）→ 获取字幕 → 生成完整结构化学习文档（含思维导图、概念速查表、行动指南）。视频和笔记统一输出到同一文件夹。用户提供视频链接并要求下载/翻译/笔记/整理/学习文档时触发。"
 ---
@@ -11,14 +11,15 @@ description: "一站式 YouTube/B站 视频处理：自动检测中文音轨 →
 
 ```
 视频链接 → [Phase 0] 获取中文标题
-         → [Phase 1] 下载视频
-              ├─ 检测中文配音音轨 → 有 → 合并中文音轨 ✅
-              └─ 无 →
-                   ├─ 检测是否英文视频 → 是 → AI中文配音 → ✅
-                   └─ 否 → 保留原音轨
+         → [Phase 1] 模式判断
+              ├─ 学习模式（无"下载"） → 跳过下载，直接获取字幕
+              └─ 学习下载模式（有"下载"） → 下载视频
+                   ├─ 检测中文配音音轨 → 有 → 合并中文音轨 ✅
+                   └─ 无 → 检测是否英文视频 → 是 → AI中文配音 → ✅
+                                              └─ 否 → 保留原音轨
          → [Phase 2] 获取完整字幕
          → [Phase 3~6] 撰写结构化学习文档（含过程还原、可视化）
-         → [Phase 7] 统一交付：视频 + HTML 学习文档 → 同一文件夹
+         → [Phase 7] 统一交付：视频(可选) + HTML 学习文档 → 同一文件夹
 ```
 
 **本仓库整合了视频下载与学习笔记两大模块于一体：**
@@ -27,14 +28,26 @@ description: "一站式 YouTube/B站 视频处理：自动检测中文音轨 →
 
 ## 何时触发
 
+**两种模式**：
+
+| 模式 | 触发关键词 | 行为 |
+|------|-----------|------|
+| **学习** | "学习这个视频"、"帮我学习"、"分析这个视频"、"学习 [链接]" | 只获取字幕 + 生成结构化学习笔记（不下载视频） |
+| **学习下载** | "学习下载"、"下载并学习"、"下载并整理"、"下载这个视频" | 下载视频 + 配中文音轨/字幕 + 生成笔记 |
+
 **自动触发条件**（符合任一即触发）：
-- 用户提供 YouTube/B站 链接 + 以下任一关键词：下载、翻译、笔记、整理、总结、学习笔记、学习文档、听课、做笔记、配音、字幕
+- 用户提供 YouTube/B站 链接 + 以下任一关键词：学习、下载、翻译、笔记、整理、总结、学习笔记、学习文档、听课、做笔记、配音、字幕
+- 用户说："帮我学习这个视频" + 链接
 - 用户说："帮我下载这个视频"、"下载并做笔记"、"把视频翻译成中文"、"生成学习文档"
 - 用户说："帮我整理这个视频" + 链接
 
 **不触发的情况**：
 - 仅提供链接，没有明确操作意图
 - 仅要求提取字幕（无笔记需求）→ 仅执行 Phase 0~2
+
+> **关键区分**：用户是否明确说了"下载"。
+> - 说"学习" → 不下载视频，只获取字幕和生成笔记
+> - 说"学习下载" → 下载视频 + 字幕 + 笔记
 
 ---
 
@@ -90,9 +103,12 @@ YouTube-Download-Learning-Note/            ← 根目录（桌面）
 │   ├── yt-dl-zh.sh                        ← ✦ 主下载脚本（macOS/Linux）
 │   ├── fetch_transcript.py                ←   字幕获取（YouTube/B站）
 │   ├── get_yt_title.py                    ←   获取中文标题
-│   ├── ai-dub.ps1                         ←   AI配音（Windows）
-│   ├── ai-dub.sh                          ←   AI配音（macOS/Linux）
-│   ├── yt-monitor.ps1                     ←   频道监控
+│   ├── ai_dub_core.py                     ← ✦ AI配音核心（跨平台）
+│   ├── ai-dub.ps1                         ←   AI配音包装器（Windows）
+│   ├── ai-dub.sh                          ←   AI配音包装器（macOS/Linux）
+│   ├── yt_monitor.py                      ← ✦ 频道监控核心（跨平台）
+│   ├── yt-monitor.ps1                     ←   频道监控包装器（Windows）
+│   ├── yt-monitor.sh                      ←   频道监控包装器（macOS/Linux）
 │   └── youtuber_list.md                   ←   监控频道列表
 ├── config.yaml                            ←   配置文件
 ├── requirements.txt                       ←   Python 依赖
@@ -132,24 +148,41 @@ python "$SCRIPT_DIR\get_yt_title.py" "<URL>"
 
 ---
 
-## Phase 1：视频下载与中文处理
+## Phase 1：视频处理（学习模式 vs 学习下载模式）
 
-### 核心逻辑（自动执行，无需用户干预）
+### 模式判断
 
-**优先级链**：🥇中文配音音轨(140-16) → 🥈自动AI中文配音（英文视频） → 🥉保留原始音轨
+**学习模式**（用户说"学习"但没说要"下载"）：
+- 跳过视频下载，直接进入 Phase 2 获取字幕
+- 获取字幕后直接进入 Phase 3~6 生成笔记
+- 最终产出：HTML 学习笔记 + 字幕文件（无视频文件）
 
-整个流程自动判断，不需要用户指定模式。执行逻辑如下：
+**学习下载模式**（用户说"学习下载"或明确要求"下载"）：
+- 执行完整视频下载流程
+- 获取字幕
+- 生成笔记
+- 最终产出：视频文件 + HTML 学习笔记 + 字幕文件
+
+> **关键区分**：用户是否明确说了"下载"。
+> - "学习这个视频" → 学习模式（不下载）
+> - "学习下载这个视频" → 学习下载模式（下载）
+
+---
+
+### 学习下载模式：下载与中文处理
+
+**优先级链**：🥇中文配音音轨(140-16) → 🥈AI中文配音（英文视频，edge-tts） → 🥉保留原始音轨
 
 1. **下载视频**（最佳画质优先）
 2. **检测中文配音音轨**（yt-dlp -F 检测 140-16 格式）
 3. **如果已有中文配音音轨** → 直接合并，完成 ✅
 4. **如果没有中文配音音轨**：
-   - 用 `get_yt_title.py` / 视频元数据判断是否为英文内容
-   - 如果是英文视频 → **自动运行 AI 中文配音**（Edge TTS / pyvideotrans）
+   - 判断是否为英文视频
+   - 如果是英文视频 → **运行 AI 中文配音**（edge-tts / ai_dub_core.py）
    - 如果不是英文视频 → 保留原始音轨
 
-> **AI 配音的前提条件**：需要安装 `edge-tts`（推荐，简单）或 `pyvideotrans`（更完整，但安装复杂）。
-> 如果两者都未安装，则保留原始音轨并提示用户。
+> **AI 配音前提**：需要安装 `edge-tts`（`pip install edge-tts`）和 `faster-whisper`（`pip install faster-whisper`）。
+> 如果未安装，则保留原始音轨并提示用户。
 
 ### 1a. 下载视频（基础命令）
 
@@ -181,31 +214,51 @@ python -m yt_dlp --extractor-args "youtube:player_client=android" `
   -o "$tempDir\${title}.%(ext)s" "<URL>"
 ```
 
-### 1b. AI 中文配音（自动执行）
+### 1b. AI 中文配音（学习下载模式）
 
 当检测到视频为**英文内容且无中文音轨**时，自动执行：
 
 ```powershell
-# 方法一：使用 edge-tts（优先，轻量级）
-$videoPath = "$tempDir\$title.mp4"
-python -m yt_dlp --write-auto-subs --sub-langs "en" --skip-download `
-  -o "$tempDir\%(id)s" "<URL>" 2>$null
-# 提取原音频 → whisper 转录 → edge-tts 合成中文 → 合并
+# 使用 ai_dub_core.py（跨平台完整实现）
+python "$SCRIPT_DIR\ai_dub_core.py" "$videoPath" --voice "zh-CN-XiaoxiaoNeural"
 
-# 方法二：使用 ai-dub.ps1（有完整 pyvideotrans 时）
-powershell -File "$SCRIPT_DIR\ai-dub.ps1" -Input "$videoPath" `
-  -SourceLang en -TargetLang zh-cn -Engine edge-tts
+# 或保留原背景音混合
+python "$SCRIPT_DIR\ai_dub_core.py" "$videoPath" --keep-bgm
+
+# 如果已有翻译好的中文文本，直接指定
+python "$SCRIPT_DIR\ai_dub_core.py" "$videoPath" --text "$videoPath\..\translated.txt"
 
 # 配音后的文件命名为：{标题}_zh_dubbed.mp4
 ```
 
+**ai_dub_core.py 完整流程**：
+1. 提取音频（ffmpeg）
+2. faster-whisper 转录英文文本
+3. 保存转录文件供用户翻译
+4. 用户翻译后重新运行，指定 `--text` 参数
+5. Edge TTS 分段合成中文语音
+6. ffmpeg 合并音频与视频
+
 ### 1c. 频道监控
 
 ```powershell
-powershell -File "$SCRIPT_DIR\yt-monitor.ps1"                # 扫描并下载新视频
-powershell -File "$SCRIPT_DIR\yt-monitor.ps1" -DryRun        # 仅扫描不下载
-powershell -File "$SCRIPT_DIR\yt-monitor.ps1" -Channel Name  # 只处理指定频道
+# Windows
+powershell -File "$SCRIPT_DIR\yt-monitor.ps1"
+powershell -File "$SCRIPT_DIR\yt-monitor.ps1" -DryRun
+powershell -File "$SCRIPT_DIR\yt-monitor.ps1" -Channel Name
+
+# macOS / Linux
+bash "$SCRIPT_DIR/yt-monitor.sh"
+bash "$SCRIPT_DIR/yt-monitor.sh" --dry-run
+bash "$SCRIPT_DIR/yt-monitor.sh" --channel Name
 ```
+
+**yt_monitor.py 功能**：
+- 扫描配置的 YouTube 频道最新视频
+- 解析 ytInitialData 提取视频列表
+- SQLite 数据库存储已下载视频，避免重复
+- 过滤含中文标题的视频
+- 自动使用 yt-dlp 下载新视频
 
 ### 流程图（新）
 
@@ -214,20 +267,32 @@ powershell -File "$SCRIPT_DIR\yt-monitor.ps1" -Channel Name  # 只处理指定�
   │
   ├─ Step 1: get_yt_title.py → 获取中文标题，判断语言
   │
-  ├─ Step 2: 下载视频（最佳画质）
-  │
-  ├─ Step 3: 检测中文配音音轨 (140-16)
-  │   ├─ 有 ✅ → 视频已有中文配音 → 直接使用
+  ├─ 模式判断
+  │   ├─ 用户说"学习"（无"下载"） → 学习模式
+  │   │   └─ 跳过下载，直接进入 Phase 2 获取字幕
   │   │
-  │   └─ 无 → 判断视频语言
-  │       ├─ 是英文视频 → AI中文配音
-  │       │   ├─ edge-tts 可用? → 转录+合成+合并 → ✅
-  │       │   ├─ pyvideotrans 可用? → pyvideotrans → ✅
-  │       │   └─ 均不可用 → 保留原音轨 + 提示安装
+  │   └─ 用户说"学习下载"或"下载" → 学习下载模式
+  │       ├─ Step 2: 下载视频（最佳画质）
   │       │
-  │       └─ 非英文视频 → 保留原始音轨 ✅
+  │       ├─ Step 3: 检测中文配音音轨 (140-16)
+  │       │   ├─ 有 ✅ → 视频已有中文配音 → 直接使用
+  │       │   │
+  │       │   └─ 无 → 判断视频语言
+  │       │       ├─ 是英文视频 → AI中文配音 (ai_dub_core.py)
+  │       │       │   ├─ edge-tts + faster-whisper 可用 → 转录+TTS+合并 → ✅
+  │       │       │   └─ 不可用 → 保留原音轨 + 提示安装
+  │       │       │
+  │       │       └─ 非英文视频 → 保留原始音轨 ✅
+  │       │
+  │       └─ 视频文件准备完毕
   │
-  └─ Step 4: 输出文件准备完毕（等待 Phase 9 统一交付）
+  ├─ Step 4: 获取字幕（Phase 2）
+  │
+  ├─ Step 5~8: 生成结构化学习文档（Phase 3~6）
+  │
+  └─ Step 9: 统一交付（Phase 9）
+       ├─ 学习模式：HTML 笔记 + 字幕文件（无视频）
+       └─ 学习下载模式：视频 + HTML 笔记 + 字幕文件
 ```
 
 ---
@@ -630,7 +695,8 @@ ai_dub:
 | 路径分隔 | `\` | `/` |
 | 桌面路径 | `C:\Users\{用户名}\Desktop\` | `~/Desktop/` |
 | 下载脚本 | `yt-dl-zh.ps1` | `yt-dl-zh.sh` |
-| AI配音脚本 | `ai-dub.ps1` | `ai-dub.sh` |
+| AI配音脚本 | `ai-dub.ps1` (包装器) | `ai-dub.sh` (包装器) |
+| AI配音核心 | `ai_dub_core.py` | `ai_dub_core.py` |
+| 频道监控 | `yt-monitor.ps1` (包装器) | `yt-monitor.sh` (包装器) |
+| 频道监控核心 | `yt_monitor.py` | `yt_monitor.py` |
 | 字幕脚本 | `fetch_transcript.py` | `fetch_transcript.py` |
-
-
