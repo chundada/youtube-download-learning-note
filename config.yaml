@@ -1,4 +1,4 @@
-﻿# yt-dl-zh 配置文件
+# yt-dl-zh 配置文件
 # 可通过环境变量覆盖（如 HTTP_PROXY, YT_DL_DIR 等）
 
 # ── 代理 ──────────────────────────────────────────────────
@@ -21,7 +21,7 @@ format:
 
 # ── AI 配音 ────────────────────────────────────────────────
 ai_dub:
-  engine: 'pyvideotrans'        # pyvideotrans | manual
+  engine: 'edge-tts'            # edge-tts (完整实现，跨平台) | pyvideotrans
   source_language: 'en'         # 源语言
   target_language: 'zh-cn'      # 目标语言
   voice: 'zh-CN-XiaoxiaoNeural' # Edge TTS 语音名称
