@@ -1,4 +1,4 @@
-﻿<picture>
+<picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6&height=200&section=header&text=YouTube%20All%20in%20One&fontSize=48&fontColor=fff&animation=fadeIn">
   <img alt="header" src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6&height=200&section=header&text=YouTube%20All%20in%20One&fontSize=48&fontColor=fff&animation=fadeIn">
 </picture>
@@ -24,6 +24,7 @@
 |:----:|------|------|
 | 🎯 | **自动下载** | 最佳画质，自动检测中文配音音轨 |
 | 🎙️ | **AI 中文配音** | 英文视频自动配中文语音（需 `edge-tts`） |
+| 🎞️ | **AI 加工合成** | 压暗背景 + 章节总结卡片 + 双语烧录字幕 |
 | 📝 | **字幕获取** | YouTube/B站 字幕，4级降级策略永不空手 |
 | 📄 | **学习笔记** | 过程还原式 HTML 学习文档，含思维导图、概念速查表 |
 | 📂 | **统一交付** | 视频 + 笔记 + 字幕 → 同一个文件夹 |
@@ -39,7 +40,7 @@ pip install -r requirements.txt
 pip install yt-dlp edge-tts   # 推荐安装 AI 配音
 ```
 
-> 还需安装 **ffmpeg**（视频处理必需）：\`winget install ffmpeg\`（Windows）或 \`brew install ffmpeg\`（macOS）
+> 还需安装 **ffmpeg**（视频处理必需）：`winget install ffmpeg`（Windows）或 `brew install ffmpeg`（macOS）
 
 ### 使用
 
@@ -67,6 +68,9 @@ YouTube-Download-Learning-Note/
 │   ├── get_yt_title.py              ← 中文标题获取
 │   ├── ai-dub.ps1                   ← AI 配音 (Windows)
 │   ├── ai-dub.sh                    ← AI 配音 (macOS/Linux)
+│   ├── render_cards.py              ← 章节总结卡片渲染 (Phase 2.6)
+│   ├── build_bilingual_ass.py       ← 双语 ASS 字幕生成 (Phase 2.7)
+│   ├── compose_video.py             ← 最终合成 (Phase 2.8)
 │   ├── yt-monitor.ps1               ← 频道监控
 │   └── youtuber_list.md             ← 监控频道列表
 ├── config.yaml                      ← 全局配置
@@ -102,6 +106,14 @@ YouTube-Download-Learning-Note/
   │  4级降级: API → yt-dlp → 第三方 → 框架性笔记  │
   └────────────────────┬──────────────────────────┘
                        ▼
+  ┌─ Phase 2.5~2.8 ───────────────────────────────┐
+  │  AI 加工合成                                  │
+  │  · AI 翻译 + 章节总结（text_zh/chapters.json）│
+  │  · render_cards.py → 总结卡片 PNG            │
+  │  · build_bilingual_ass.py → 双语字幕 ASS     │
+  │  · compose_video.py → 压暗背景+卡片+双语字幕 │
+  └────────────────────┬──────────────────────────┘
+                       ▼
   ┌─ Phase 3~8 ───────────────────────────────────┐
   │  生成结构化 HTML 学习文档                     │
   │  · 过程还原式叙述（先过程后结论）              │
@@ -124,22 +136,25 @@ YouTube-Download-Learning-Note/
 
 | 操作 | Windows | macOS/Linux |
 |------|---------|-------------|
-| 下载视频 | \`scripts\yt-dl-zh.ps1 -Url "URL"\` | \`bash scripts/yt-dl-zh.sh "URL"\` |
-| 仅字幕 | \`... -SubsOnly\` | \`... --subs-only\` |
-| AI 配音 | \`... -AIDub\` | \`... --ai-dub\` |
-| 频道监控 | \`scripts\yt-monitor.ps1\` | \`bash scripts/yt-monitor.sh\` |
-| 获取字幕 | \`python scripts/fetch_transcript.py "URL"\` | \`python3 scripts/fetch_transcript.py "URL"\` |
+| 下载视频 | `scripts\yt-dl-zh.ps1 -Url "URL"` | `bash scripts/yt-dl-zh.sh "URL"` |
+| 仅字幕 | `... -SubsOnly` | `... --subs-only` |
+| AI 配音 | `... -AIDub` | `... --ai-dub` |
+| 频道监控 | `scripts\yt-monitor.ps1` | `bash scripts/yt-monitor.sh` |
+| 获取字幕 | `python scripts/fetch_transcript.py "URL"` | `python3 scripts/fetch_transcript.py "URL"` |
+| 渲染总结卡片 | `python scripts/render_cards.py chapters.json --out-dir cards/` | 同左 |
+| 双语字幕 | `python scripts/build_bilingual_ass.py transcript.json --out bilingual.ass` | 同左 |
+| 合成视频 | `python scripts/compose_video.py --video in.mp4 --audio dub.mp3 --chapters chapters.json --cards-dir cards/ --ass bilingual.ass --out final.mp4` | 同左 |
 
 ---
 
 ## ⚙️ 配置
 
-编辑 \`config.yaml\` 或在环境变量中设置：
+编辑 `config.yaml` 或在环境变量中设置：
 
 | 变量 | 用途 | 默认值 |
 |------|------|--------|
-| \`HTTP_PROXY\` | HTTP 代理 | \`http://127.0.0.1:2080\` |
-| \`YT_DL_DIR\` | 下载目录 | \`~/youtube-downloads\` |
+| `HTTP_PROXY` | HTTP 代理 | `http://127.0.0.1:2080` |
+| `YT_DL_DIR` | 下载目录 | `~/youtube-downloads` |
 
 ---
 
@@ -177,10 +192,10 @@ YouTube-Download-Learning-Note/
 
 | 项目 | Windows | macOS/Linux |
 |------|---------|-------------|
-| Python | \`python\` | \`python3\` |
-| 下载脚本 | \`yt-dl-zh.ps1\` | \`yt-dl-zh.sh\` |
-| 配音脚本 | \`ai-dub.ps1\` | \`ai-dub.sh\` |
-| 桌面路径 | \`C:\\Users\\{用户名}\\Desktop\\\` | \`~/Desktop/\` |
+| Python | `python` | `python3` |
+| 下载脚本 | `yt-dl-zh.ps1` | `yt-dl-zh.sh` |
+| 配音脚本 | `ai-dub.ps1` | `ai-dub.sh` |
+| 桌面路径 | `C:\Users\{用户名}\Desktop\` | `~/Desktop/` |
 
 ---
 
