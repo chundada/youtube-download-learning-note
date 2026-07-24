@@ -26,3 +26,9 @@ ai_dub:
   target_language: 'zh-cn'      # 目标语言
   voice: 'zh-CN-XiaoxiaoNeural' # Edge TTS 语音名称
   keep_background_music: true   # 保留背景音
+
+# ── AI 加工合成 ────────────────────────────────────────────
+compose:
+  crf: 23                             # x264 画质（越小越清晰，18~28 常用）
+  size: '1920x1080'                   # 输出分辨率 / 卡片画布尺寸
+  # font_path: 'C:\Windows\Fonts\msyh.ttc'  # 可选：强制指定卡片中文字体（默认自动回退 msyh→simhei→simsun）

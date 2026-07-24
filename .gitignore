@@ -22,3 +22,5 @@ Thumbs.db
 
 # Git
 .gitattributes
+_run_*/
+学习笔记产出/
